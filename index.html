@@ -13,7 +13,7 @@
       theme: {
         extend: {
           fontFamily: {
-            sans: ['-apple-system', 'BlinkMacSystemFont', 'Inter', 'Noto Sans KR', 'sans-serif'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'SF Pro Display', 'SF Pro Text', 'Pretendard', 'Inter', 'Noto Sans KR', 'sans-serif'],
           },
           colors: {
             apple: {
@@ -115,6 +115,11 @@
             <span id="sync-dot" class="w-2 h-2 rounded-full bg-[#34C759]"></span>
             <span id="sync-status-text">로컬 자동저장</span>
             <span class="text-[#0071E3]">GAS 연동</span>
+          </button>
+
+          <button onclick="pullFromGas(false)" title="구글 시트 Options 탭에서 최신 후보 카드 불러오기" class="flex items-center gap-1.5 bg-[#0071E3]/10 hover:bg-[#0071E3]/15 text-[#0071E3] border border-[#0071E3]/20 px-3 py-1.5 rounded-full text-xs font-semibold transition">
+            <span>🔄</span>
+            <span class="hidden md:inline">시트에서 후보 불러오기</span>
           </button>
         </div>
       </div>
@@ -281,20 +286,31 @@
           <label class="block text-xs font-semibold text-[#1D1D1F] mb-1.5">Google Apps Script 배포 URL (Web App URL)</label>
           <input id="gas-url-input" type="url" placeholder="https://script.google.com/macros/s/AKfycb.../exec" class="w-full bg-[#F5F5F7] border border-black/[0.08] rounded-xl px-3.5 py-2.5 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-[#0071E3]" />
           <p class="text-[11px] text-[#6E6E73] mt-1.5">
-            * URL을 입력하면 옵션 선택, 추가, 파트너 투표 시 자동으로 구글 시트 <code class="bg-[#F5F5F7] px-1 rounded">HoneymoonPlan</code> 탭에 반영됩니다.
+            * 웹앱에서 변경/투표한 내역은 <code class="bg-[#F5F5F7] px-1 rounded">State</code> 시트에, 구글 시트 <code class="bg-[#F5F5F7] px-1 rounded">Options</code> 탭에 직접 행을 추가한 후보 옵션은 프론트엔드 카드로 자동 동기화됩니다.
           </p>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
           <button onclick="saveGasUrlAndPush()" class="bg-[#0071E3] hover:bg-[#0077ED] text-white font-semibold text-xs py-2.5 px-4 rounded-xl transition flex items-center justify-center gap-1.5">
-            <span>⬆️ 연결 및 시트로 내보내기</span>
+            <span>⬆️ 연결 및 시트 동기화</span>
           </button>
           <button onclick="pullFromGas()" class="bg-[#F5F5F7] hover:bg-[#E5E5EA] text-[#1D1D1F] font-semibold text-xs py-2.5 px-4 rounded-xl transition flex items-center justify-center gap-1.5">
-            <span>⬇️ 구글 시트에서 불러오기</span>
+            <span>🔄 시트에서 후보 불러오기</span>
           </button>
           <button onclick="resetToDefaultData()" class="bg-[#FF3B30]/10 hover:bg-[#FF3B30]/20 text-[#FF3B30] font-semibold text-xs py-2.5 px-4 rounded-xl transition flex items-center justify-center gap-1.5">
             <span>↺ 초기 추천 데이터 복원</span>
           </button>
+        </div>
+
+        <div class="bg-[#F5F5F7] rounded-2xl p-3.5 text-[11px] text-[#3A3A3C] space-y-1.5">
+          <div class="font-bold text-[#1D1D1F]">📋 Google Sheets `Options` 시트 컬럼 스키마 (직접 행 추가 시 참고)</div>
+          <div class="font-mono text-[10px] bg-white p-2.5 rounded-xl border border-black/[0.06] overflow-x-auto whitespace-nowrap">
+            id | stageId | category | title | subtitle | priceKrw | priceUsd | rating | badge | pros | cons | url | notes
+          </div>
+          <p class="text-[#6E6E73]">
+            • <strong>stageId</strong>: <code class="bg-white px-1 rounded">FLIGHT</code>, <code class="bg-white px-1 rounded">D0315</code>, <code class="bg-white px-1 rounded">D0316</code>, <code class="bg-white px-1 rounded">D0320</code>, <code class="bg-white px-1 rounded">D0321</code>, <code class="bg-white px-1 rounded">D0322</code>, <code class="bg-white px-1 rounded">D0323</code>, <code class="bg-white px-1 rounded">D0324</code>, <code class="bg-white px-1 rounded">D0325</code><br>
+            • <strong>category</strong>: <code class="bg-white px-1 rounded">항공</code> · <code class="bg-white px-1 rounded">숙소</code> · <code class="bg-white px-1 rounded">프로그램</code> · <code class="bg-white px-1 rounded">이동수단</code> · <strong>priceKrw</strong>는 2인 총액(KRW) 기준입니다.
+          </p>
         </div>
 
         <!-- Partner Names Customization -->
@@ -329,72 +345,144 @@
           <button onclick="copyGasScript()" class="absolute top-3 right-3 bg-[#0071E3] hover:bg-[#0077ED] text-white text-xs font-semibold px-3 py-1.5 rounded-lg shadow-sm">
             코드 복사하기
           </button>
-          <pre id="gas-script-code" class="bg-[#1D1D1F] text-[#F5F5F7] p-4 rounded-2xl text-[11px] font-mono overflow-x-auto max-h-72 leading-relaxed">const SHEET_NAME = 'HoneymoonPlan';
+          <pre id="gas-script-code" class="bg-[#1D1D1F] text-[#F5F5F7] p-4 rounded-2xl text-[11px] font-mono overflow-x-auto max-h-72 leading-relaxed">const OPTIONS_SHEET = 'Options';
+const STATE_SHEET = 'State';
+const OPTIONS_HEADERS = [
+  'id', 'stageId', 'category', 'title', 'subtitle',
+  'priceKrw', 'priceUsd', 'rating', 'badge', 'pros', 'cons', 'url', 'notes'
+];
+
+function ensureOptionsSheet(ss) {
+  let sheet = ss.getSheetByName(OPTIONS_SHEET);
+  if (!sheet) {
+    sheet = ss.insertSheet(OPTIONS_SHEET);
+    sheet.getRange(1, 1, 1, OPTIONS_HEADERS.length).setValues([OPTIONS_HEADERS]);
+    sheet.getRange(1, 1, 1, OPTIONS_HEADERS.length).setFontWeight('bold').setBackground('#F3F4F6');
+    // Sample rows matching newly provided flights
+    const sampleRows = [
+      [
+        'flt-et-outbound-direct', 'FLIGHT', '항공',
+        '에티오피아항공 가는편 (3/15 ICN → JRO · Ethiopian Airlines)',
+        'ET673 ICN 12:10 AM → ADD 7:20 AM (1h 경유) · ET815 ADD 8:20 AM → JRO 10:40 AM · 총 16h 30m · 위탁수하물 포함',
+        2142388, 1530, '4.7/5 (122)', '공식 항공사 · ₩1,071,194/인',
+        '10:40 AM 킬리만자로 오전 도착으로 낮 시간 활용 유리, 공식 항공사 직예약',
+        '아디스아바바(ADD) 1h 환승 시간 다소 타이트, 16h 30m 총 이동 피로도 고려',
+        'https://www.ethiopianairlines.com', '2인 총액 ₩2,142,388 (1인 ₩1,071,194)'
+      ],
+      [
+        'flt-tk-return-multicity', 'FLIGHT', '항공',
+        '터키항공 리턴 다구간 직항 (3/24 ZNZ→IST & 3/27 IST→ICN)',
+        '1구간 3/24(수) ZNZ 5:30 AM → IST 1:25 PM (7h 55m 직항) · 2구간 3/27(토) IST 2:20 AM → ICN 6:20 PM (10h 직항) · 기내/위탁수하물 포함',
+        1563050, 1116, '4.9/5 (905)', '직항 멀티시티 · ₩781,525/인',
+        'ZNZ-IST 및 IST-ICN 양 구간 모두 직항, 3/26 이스탄불 일정을 거의 온전히 보낸 뒤 심야 출발 가능',
+        '3/24 ZNZ 5:30 AM 출발로 새벽 기상/이동 필요, 3/27 IST 2:20 AM 심야 출발',
+        'https://www.turkishairlines.com', '2인 총액 ₩1,563,050 (1인 ₩781,525)'
+      ]
+    ];
+    sheet.getRange(2, 1, sampleRows.length, OPTIONS_HEADERS.length).setValues(sampleRows);
+  }
+  return sheet;
+}
 
 function doGet(e) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName(SHEET_NAME);
-  if (!sheet) {
-    return ContentService.createTextOutput(JSON.stringify({ status: 'empty', items: [] }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-  const rows = sheet.getDataRange().getValues();
-  if (rows.length <= 1) {
-    return ContentService.createTextOutput(JSON.stringify({ status: 'empty', items: [] }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-  const headers = rows[0];
-  const items = rows.slice(1).map(row => {
-    const obj = {};
-    headers.forEach((h, i) => {
-      if (h === 'selected' || h === 'voteA' || h === 'voteB') {
-        obj[h] = row[i] === true || row[i] === 'TRUE';
-      } else if (h === 'priceKRW') {
-        obj[h] = Number(row[i]) || 0;
-      } else {
-        obj[h] = row[i];
-      }
+  const optSheet = ensureOptionsSheet(ss);
+  const optRows = optSheet.getDataRange().getValues();
+  const options = [];
+  if (optRows.length > 1) {
+    const headers = optRows[0].map(h => String(h).trim());
+    optRows.slice(1).forEach(r => {
+      if (!r[0] && !r[3]) return;
+      const obj = {};
+      headers.forEach((h, idx) => {
+        obj[h] = r[idx] !== undefined ? r[idx] : '';
+      });
+      obj.priceKrw = Number(String(obj.priceKrw).replace(/[^0-9.-]/g, '')) || 0;
+      options.push(obj);
     });
-    return obj;
-  });
-  return ContentService.createTextOutput(JSON.stringify({ status: 'ok', items }))
-    .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  let state = null;
+  const stateSheet = ss.getSheetByName(STATE_SHEET);
+  if (stateSheet && stateSheet.getLastRow() >= 2) {
+    const raw = stateSheet.getRange(2, 1).getValue();
+    if (raw) {
+      try { state = JSON.parse(raw); } catch (err) { state = null; }
+    }
+  }
+
+  return ContentService.createTextOutput(JSON.stringify({
+    status: 'ok',
+    options: options,
+    state: state
+  })).setMimeType(ContentService.MimeType.JSON);
 }
 
 function doPost(e) {
   try {
     const payload = JSON.parse(e.postData.contents);
-    const items = payload.items || [];
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    let sheet = ss.getSheetByName(SHEET_NAME);
-    if (!sheet) {
-      sheet = ss.insertSheet(SHEET_NAME);
-    }
-    sheet.clearContents();
-    const headers = ['id', 'dayId', 'category', 'title', 'subtitle', 'priceKRW', 'selected', 'pros', 'cons', 'link', 'voteA', 'voteB', 'memo', 'updatedAt'];
-    const rows = [headers];
     const now = new Date().toLocaleString('ko-KR');
-    items.forEach(item => {
-      rows.push([
-        item.id || '',
-        item.dayId || '',
-        item.category || '',
-        item.title || '',
-        item.subtitle || '',
-        Number(item.priceKRW) || 0,
-        Boolean(item.selected),
-        item.pros || '',
-        item.cons || '',
-        item.link || '',
-        Boolean(item.voteA),
-        Boolean(item.voteB),
-        item.memo || '',
-        now
-      ]);
-    });
-    sheet.getRange(1, 1, rows.length, headers.length).setValues(rows);
-    sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold').setBackground('#F3F4F6');
-    return ContentService.createTextOutput(JSON.stringify({ status: 'ok', count: items.length }))
+
+    if (payload.state) {
+      let sSheet = ss.getSheetByName(STATE_SHEET);
+      if (!sSheet) {
+        sSheet = ss.insertSheet(STATE_SHEET);
+        sSheet.getRange(1, 1, 1, 2).setValues([['payloadJson', 'updatedAt']]).setFontWeight('bold');
+      }
+      sSheet.getRange(2, 1, 1, 2).setValues([[JSON.stringify(payload.state), now]]);
+    }
+
+    if (Array.isArray(payload.options)) {
+      const oSheet = ensureOptionsSheet(ss);
+      const existingRows = oSheet.getDataRange().getValues();
+      const existingById = {};
+      if (existingRows.length > 1) {
+        const hRow = existingRows[0].map(h => String(h).trim());
+        const idIdx = hRow.indexOf('id');
+        existingRows.slice(1).forEach(row => {
+          const rowId = idIdx >= 0 ? String(row[idIdx] || '').trim() : '';
+          if (rowId) existingById[rowId] = row;
+        });
+      }
+
+      const outRows = [OPTIONS_HEADERS];
+      const seenIds = new Set();
+
+      payload.options.forEach(item => {
+        const id = String(item.id || '').trim();
+        if (id) seenIds.add(id);
+        const prev = id && existingById[id] ? existingById[id] : null;
+        outRows.push([
+          id || ('opt-' + Utilities.getUuid().slice(0, 8)),
+          item.stageId || item.dayId || (prev ? prev[1] : 'D0315'),
+          item.category || (prev ? prev[2] : '숙소'),
+          item.title || (prev ? prev[3] : ''),
+          item.subtitle || (prev ? prev[4] : ''),
+          Number(item.priceKrw !== undefined ? item.priceKrw : (item.priceKRW || 0)) || 0,
+          Number(item.priceUsd) || (prev ? Number(prev[6]) || 0 : 0),
+          item.rating || (prev ? prev[7] : ''),
+          item.badge || (prev ? prev[8] : ''),
+          item.pros || (prev ? prev[9] : ''),
+          item.cons || (prev ? prev[10] : ''),
+          item.url || item.link || (prev ? prev[11] : ''),
+          item.notes || item.memo || (prev ? prev[12] : '')
+        ]);
+      });
+
+      // Preserve any manual rows added in Sheets if not present in payload
+      Object.keys(existingById).forEach(rowId => {
+        if (!seenIds.has(rowId)) {
+          outRows.push(existingById[rowId]);
+        }
+      });
+
+      oSheet.clearContents();
+      oSheet.getRange(1, 1, outRows.length, OPTIONS_HEADERS.length).setValues(outRows);
+      oSheet.getRange(1, 1, 1, OPTIONS_HEADERS.length).setFontWeight('bold').setBackground('#F3F4F6');
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({ status: 'ok', updatedAt: now }))
       .setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: err.toString() }))
@@ -411,8 +499,8 @@ function doPost(e) {
     // 1. INITIAL DATA & SCHEDULE METADATA
     // ==========================================
     const TARGET_BUDGET_KRW = 10000000;
-    const STORAGE_KEY = 'honeymoon_planner_data_v1';
-    const SETTINGS_KEY = 'honeymoon_planner_settings_v1';
+    const STORAGE_KEY = 'honeymoon_planner_data_v2';
+    const SETTINGS_KEY = 'honeymoon_planner_settings_v2';
 
     const DAYS = [
       {
@@ -425,19 +513,23 @@ function doPost(e) {
       {
         id: 'FLIGHT',
         shortDate: '공통·항공',
-        title: '국제선 다구간 항공권',
-        subtitle: '인천(ICN) ↔ 킬리만자로(JRO) / 잔지바르(ZNZ)-이스탄불(IST)-인천',
-        badge: null
+        title: '국제선 항공권 조합',
+        subtitle: '3/15 인천(ICN)→킬리만자로(JRO) · 3/24 잔지바르(ZNZ)→이스탄불(IST) · 3/27 이스탄불(IST)→인천(ICN)',
+        badge: {
+          type: 'tip',
+          title: '업데이트된 항공 견적 비교 (2인 기준)',
+          text: '가는편(3/15 ICN→ADD→JRO, 10:40 AM 도착)은 에티오피아항공 직예약(2인 ₩2,142,388)이 Trip.com/Booking.com 대비 저렴하며, 리턴 다구간 직항(3/24 ZNZ 5:30 AM→IST / 3/27 IST 2:20 AM→ICN)은 터키항공 2인 ₩1,563,050입니다.'
+        }
       },
       {
         id: 'D0315',
         shortDate: '3/15 (월)',
         title: '아루샤 도착 & 서벌 와일드라이프',
-        subtitle: 'JRO 공항 도착 → 아루샤 숙소 → 서벌 와일드라이프 투어',
+        subtitle: 'JRO 10:40 AM 도착 → 아루샤 숙소 → 서벌 와일드라이프 투어',
         badge: {
           type: 'warning',
-          title: '전문가 동선 주의보: 도착 당일 피로도 & 이동시간 체크',
-          text: '인천 출발 장거리 비행 후 JRO 도착 당일 아루샤 체크인 후 시하(Siha) 지역의 서벌 와일드라이프까지 왕복 약 2.5~3시간 차량 이동이 발생합니다. 도착 항공편이 정오 이전일 때만 당일 투어를 추천하며, 오후 도착 시 3/20 사파리 종료 후 공항 이동 길에 들르는 동선이 훨씬 효율적입니다.'
+          title: '전문가 동선 진단 (ET673+ET815 · 10:40 AM JRO 착륙 기준)',
+          text: '3/15 오전 10:40 JRO 도착은 입국심사·수하물 수령 및 아루샤 이동에 충분한 낮 시간 버퍼를 줍니다. 다만 ADD(아디스아바바) 1시간 환승은 ET673 지연 시 리스크가 있고, 16시간 30분 여정 직후 서벌 와일드라이프(왕복 약 3시간)를 당일 진행할 경우 시차·이동 피로도를 반드시 고려해야 합니다.'
         }
       },
       {
@@ -475,61 +567,103 @@ function doPost(e) {
       {
         id: 'D0323',
         shortDate: '3/23 (화)',
-        title: '리조트 휴식 → 공항 인근/켄드와 숙소 이동',
-        subtitle: '3/24 새벽 잔지바르 출발 항공편 대비 최종일 컨디션 조절',
+        title: '리조트 휴식 → 스톤타운/공항 인근 숙소 이동',
+        subtitle: '3/24 새벽 5:30 AM ZNZ 출발 항공편 대비 최종일 컨디션 조절',
         badge: {
           type: 'warning',
-          title: '전문가 핵심 조언: 잔지바르→이스탄불 새벽 비행 체크아웃 문제',
-          text: '터키항공 잔지바르(ZNZ)→이스탄불(IST) 직항편은 대부분 새벽 02:00~04:35 출발입니다. 능위에서 공항까지 밤길로 약 1시간 30분 소요되므로, 3/23 숙소는 공항 10분 거리 호텔에서 레이트 체크아웃(밤 11시까지 휴식 후 샤워)을 활용하는 것이 신혼여행 컨디션에 압도적으로 유리합니다.'
+          title: '전문가 핵심 조언 (3/24 ZNZ 5:30 AM 출발 기준)',
+          text: '3/24 터키항공 직항이 오전 5:30 AM 잔지바르(ZNZ) 출발이므로, 능위(Nungwi)에서 이동할 경우 새벽 2:00~2:30 AM 기상이 필요합니다. 3/23 밤에는 스톤타운 또는 ZNZ 공항 인근 숙소로 미리 이동해 휴식하는 것을 강력히 권장합니다.'
         }
       },
       {
         id: 'D0324',
         shortDate: '3/24 (수)',
-        title: '잔지바르 → 이스탄불 도착 & 시내 이동',
-        subtitle: '새벽 비행 탑승 → 낮 이스탄불(IST) 도착 & 구시가지/카라쾨이 체크인',
+        title: '잔지바르(5:30 AM) → 이스탄불(1:25 PM) 도착 & 시내 이동',
+        subtitle: 'ZNZ 5:30 AM 출발 → IST 1:25 PM 도착(7h 55m 직항) · 구시가지/카라쾨이 체크인',
         badge: null
       },
       {
         id: 'D0325',
         shortDate: '3/25~27',
-        title: '이스탄불 시내 관광 · 쇼핑 & 귀국',
-        subtitle: '아야소피아·블루모스크·보스포러스 크루즈·바자르 쇼핑 → 3/27 인천행',
-        badge: null
+        title: '이스탄불 시내 관광 · 쇼핑 & 귀국 (3/27 2:20 AM IST 출발)',
+        subtitle: '아야소피아·블루모스크·보스포러스 크루즈·쇼핑 → 3/27 2:20 AM IST 출발 / 6:20 PM ICN 도착',
+        badge: {
+          type: 'tip',
+          title: '3/27 2:20 AM 이스탄불 출발 일정 팁',
+          text: '귀국편이 3/27 새벽 2:20 AM IST 출발(6:20 PM ICN 도착)이므로 3/26(금) 하루는 이스탄불 시내 관광과 쇼핑을 거의 온전히 즐긴 뒤 늦은 밤 공항으로 이동하는 스케줄입니다. 3/26 숙소 체크아웃 및 심야 이동 동선을 미리 확인하세요.'
+        }
       }
     ];
 
     const DEFAULT_ITEMS = [
-      // 항공 (FLIGHT)
+      // 항공 (FLIGHT) - 스크린샷 기반 가는편 + 리턴 다구간 직항 옵션
       {
-        id: 'flt-1',
+        id: 'flt-et-outbound-direct',
         dayId: 'FLIGHT',
         category: '항공',
-        title: '터키항공 다구간 (인천-JRO / ZNZ-IST-인천)',
-        subtitle: '2인 총액 · 이스탄불 무료 스톱오버 연계 최적 노선',
-        priceKRW: 3400000,
+        title: '에티오피아항공 가는편 (3/15 ICN → JRO · 2인 총액)',
+        subtitle: 'ET673 ICN 12:10 AM → ADD 7:20 AM (1h 경유) · ET815 ADD 8:20 AM → JRO 10:40 AM · 16h 30m · 수하물 포함',
+        priceKRW: 2142388,
         selected: true,
-        pros: '전 구간 동일 항공사 발권으로 수하물 및 일정 변경 안정성 최고, ZNZ-IST 직항 편리',
-        cons: '예약 시점에 따라 340~380만원대 변동 가능 (조기 발권 필수)',
-        link: 'https://www.turkishairlines.com',
+        rating: '4.7/5 (122)',
+        badge: '공식 항공사 · ₩1,071,194/인',
+        pros: '10:40 AM 킬리만자로 오전 도착, 동일 항공사 경유 및 위탁수하물 포함, 제휴사 대비 최저가',
+        cons: 'ADD 환승 1시간 버퍼가 다소 짧음 · 총 16h 30m 여정 피로도',
+        link: 'https://www.ethiopianairlines.com',
         voteA: true,
         voteB: true,
-        memo: '가장 무난한 1순위 항공권'
+        memo: '1인 ₩1,071,194 × 2명 = ₩2,142,388'
       },
       {
-        id: 'flt-2',
+        id: 'flt-et-outbound-tripcom',
         dayId: 'FLIGHT',
         category: '항공',
-        title: '에티오피아항공(ICN-JRO) + 터키항공 편도 조합',
-        subtitle: '2인 총액 · 아디스아바바 경유 탄자니아 입국',
-        priceKRW: 3100000,
+        title: '에티오피아항공 가는편 via Trip.com (3/15 ICN → JRO · 2인 총액)',
+        subtitle: 'ET673 + ET815 (1 stop ADD, 16h 30m, 10:40 AM 도착) · 24/7 라이브 챗 지원',
+        priceKRW: 2271034,
         selected: false,
-        pros: '약 30만원 예산 절감 가능, JRO 오전 도착 스케줄 유리',
-        cons: '편도 분리 발권 시 수하물 규정 및 지연 리스크 개별 관리 필요',
-        link: '',
+        rating: '4.7/5 (4,430)',
+        badge: 'Trip.com · ₩1,135,517/인',
+        pros: '24/7 고객지원 채널 제공, 일정 동일',
+        cons: '공식 항공사 직예약 대비 2인 기준 약 12.8만원 추가 비용',
+        link: 'https://www.trip.com',
         voteA: false,
         voteB: false,
         memo: ''
+      },
+      {
+        id: 'flt-et-outbound-booking',
+        dayId: 'FLIGHT',
+        category: '항공',
+        title: '에티오피아항공 가는편 via Booking.com (3/15 ICN → JRO · 2인 총액)',
+        subtitle: 'ET673 + ET815 (1 stop ADD, 16h 30m, 10:40 AM 도착) · 24/7 지원',
+        priceKRW: 2353473,
+        selected: false,
+        rating: '4.9/5 (5,104)',
+        badge: 'Booking.com · ₩1,176,737/인',
+        pros: '높은 예약 플랫폼 평점(4.9/5) 및 24/7 지원',
+        cons: '공식 항공사 직예약 대비 2인 기준 약 21.1만원 추가 비용',
+        link: 'https://www.booking.com',
+        voteA: false,
+        voteB: false,
+        memo: ''
+      },
+      {
+        id: 'flt-tk-return-multicity',
+        dayId: 'FLIGHT',
+        category: '항공',
+        title: '터키항공 리턴 다구간 직항 (3/24 ZNZ→IST & 3/27 IST→ICN · 2인 총액)',
+        subtitle: '3/24(수) ZNZ 5:30 AM → IST 1:25 PM (7h 55m 직항) · 3/27(토) IST 2:20 AM → ICN 6:20 PM (10h 직항) · 기내/위탁수하물 포함',
+        priceKRW: 1563050,
+        selected: true,
+        rating: '4.9/5 (905)',
+        badge: '직항 멀티시티 · ₩781,525/인',
+        pros: 'ZNZ-IST·IST-ICN 양 구간 모두 직항, 기내/위탁수하물 포함, 3/26 이스탄불 일정을 온전히 보낸 뒤 심야 출발',
+        cons: '3/24 ZNZ 5:30 AM 이른 출발 및 3/27 IST 2:20 AM 심야 출발',
+        link: 'https://www.turkishairlines.com',
+        voteA: true,
+        voteB: true,
+        memo: '1인 ₩781,525 × 2명 = ₩1,563,050 (가는편+리턴 합산 ₩3,705,438)'
       },
 
       // 3/15 아루샤 도착 & 서벌 와일드라이프
@@ -568,25 +702,29 @@ function doPost(e) {
         dayId: 'D0315',
         category: '프로그램',
         title: '서벌 와일드라이프(Serval Wildlife) 데이 투어',
-        subtitle: '2인 입장권 + 왕복 프라이빗 차량 (아루샤↔시하 약 90분)',
+        subtitle: '2인 입장권 + 왕복 프라이빗 차량 (10:40 AM JRO 도착 후 컨디션 점검 진행)',
         priceKRW: 350000,
         selected: true,
-        pros: '사자·기린·얼룩말과 초근접 교감 및 인생샷 명소, 신혼여행 버킷리스트',
-        cons: '도착 당일 진행 시 이동 피로도 높음 (오전 도착 비행기일 때 추천)',
+        rating: '',
+        badge: '버킷리스트',
+        pros: '사자·기린·얼룩말과 초근접 교감 및 인생샷 명소, 10:40 AM 도착 시 낮 시간 활용 가능',
+        cons: '16h 30m 비행 직후 왕복 약 3시간 추가 이동 시 피로도 상승 주의',
         link: 'https://servalwildlife.com',
         voteA: true,
         voteB: false,
-        memo: '비행기 도착 시간 확인 후 3/15 또는 3/20 중 선택'
+        memo: '10:40 AM 도착 후 입국/이동 시간 보고 당일 또는 3/20 중 최종 결정'
       },
       {
         id: 'd15-pr-2',
         dayId: 'D0315',
         category: '프로그램',
         title: '도착일 리조트 휴식 + 아루샤 스페셜티 커피 농장 투어',
-        subtitle: '2인 반나절 가벼운 시내·농장 투어 & 컨디션 회복',
+        subtitle: '2인 반나절 가벼운 휴식 & 컨디션 회복 (서벌 투어는 3/20 연계)',
         priceKRW: 120000,
         selected: false,
-        pros: '장거리 비행 피로 완벽 회복, 다음날 4박5일 사파리 컨디션 최상 유지',
+        rating: '',
+        badge: '체력 세이브',
+        pros: '16.5시간 장거리 비행 및 ADD 환승 피로 회복, 다음날 사파리 컨디션 최상 유지',
         cons: '서벌 와일드라이프는 3/20 하산 길로 옮겨야 함',
         link: '',
         voteA: false,
@@ -907,16 +1045,18 @@ function doPost(e) {
         id: 'd23-st-1',
         dayId: 'D0323',
         category: '숙소',
-        title: 'Madinat Al Bahr Business & Spa Hotel (공항 10분 거리)',
-        subtitle: '1박(데이유즈 겸용) · 새벽 비행 전 밤 11시까지 휴식·샤워 최적화',
+        title: 'Madinat Al Bahr Business & Spa Hotel (공항/스톤타운 접근 우수)',
+        subtitle: '1박 · 3/24 새벽 5:30 AM ZNZ 출발 대비 새벽 기상·이동 최적화',
         priceKRW: 280000,
         selected: true,
-        pros: 'ZNZ 공항 차량 8~10분 거리, 스파·루프탑 풀 보유, 새벽 비행 전 완벽 컨디션 유지',
-        cons: '능위 해변보다는 도심/해안가 비즈니스 리조트 느낌',
+        rating: '',
+        badge: '새벽 출발 추천',
+        pros: 'ZNZ 공항 인근으로 3/24 5:30 AM 출발 시 이동 시간 단축 및 수면·샤워 편의성 높음',
+        cons: '능위 해변 리조트보다는 도심/해안가 비즈니스 스파 호텔 느낌',
         link: '',
         voteA: true,
         voteB: true,
-        memo: '3/24 새벽 2~4시 비행기 타기 전 씻고 쉴 수 있는 최고의 전략적 선택'
+        memo: '3/24 5:30 AM 출발이라 능위에서 새벽 2시 기상하는 것보다 훨씬 유리'
       },
       {
         id: 'd23-st-2',
@@ -926,25 +1066,29 @@ function doPost(e) {
         subtitle: '1박 · 조식 포함 · 조수간만의 차가 없는 켄드와 최고급 비치',
         priceKRW: 520000,
         selected: false,
+        rating: '',
+        badge: '비치 럭셔리',
         pros: '마지막 날까지 환상적인 켄드와 해변 선셋 감상',
-        cons: '새벽 12시경 공항까지 1시간 20분 밤길 이동 필요 + 레이트체크아웃 추가금 발생',
+        cons: '3/24 5:30 AM ZNZ 출발을 위해 새벽 2시경 장거리 이동 필요',
         link: '',
         voteA: false,
         voteB: false,
         memo: ''
       },
 
-      // 3/24 잔지바르 > 이스탄불
+      // 3/24 잔지바르 > 이스탄불 (5:30 AM ZNZ -> 1:25 PM IST)
       {
         id: 'd24-tr-1',
         dayId: 'D0324',
         category: '이동수단',
-        title: '이스탄불 공항(IST) → 시내 호텔 프라이빗 VIP 밴 픽업',
-        subtitle: '2인 편도 · 짐이 많은 신혼여행객 전용 벤츠 비토급 차량',
+        title: '이스탄불 공항(IST 1:25 PM 도착) → 시내 호텔 프라이빗 VIP 밴 픽업',
+        subtitle: '2인 편도 · 1:25 PM 낮 시간 입국 후 쾌적한 시내 이동',
         priceKRW: 65000,
         selected: true,
-        pros: '사파리·휴양 짐이 많은 상태에서 공항 입국장 바로 픽업, 택시 바가지 걱정 없음',
-        cons: '공항버스(Havaist 2인 약 1.8만원)보다 비용 높음',
+        rating: '',
+        badge: '',
+        pros: '1:25 PM 도착으로 낮 시간대 이동 가능, 사파리·휴양 짐 안전 운송',
+        cons: '공항버스(Havaist) 대비 비용 높음',
         link: '',
         voteA: true,
         voteB: true,
@@ -954,25 +1098,29 @@ function doPost(e) {
         id: 'd24-st-1',
         dayId: 'D0324',
         category: '숙소',
-        title: '카라쾨이(Karakoy) 디자인 부티크 호텔 (3박 전체)',
-        subtitle: '3/24~3/27 (3박) · 조식 포함 · 트렌디한 카페거리 & 트램/페리 교통 요충지',
+        title: '카라쾨이(Karakoy) 디자인 부티크 호텔 (3/24~3/27 · 3박)',
+        subtitle: '3/24 1:25 PM IST 도착 ~ 3/27 2:20 AM IST 출발 대비 · 조식 포함',
         priceKRW: 720000,
         selected: true,
-        pros: '구시가지(술탄아흐메트)와 신시가지(탁심/갈라타) 모두 도보·트램 10분 거리, 맛집 천국',
+        rating: '',
+        badge: '교통·맛집 요충지',
+        pros: '구시가지·신시가지 접근성 좋고, 3/26 밤 2:20 AM 심야 출발 전 저녁·짐 정리 동선 편리',
         cons: '구시가지 유적지 바로 코앞보다는 트램 2정거장 이동 필요',
         link: '',
         voteA: true,
         voteB: true,
-        memo: '3박 총 72만원 (1박당 24만원) - 젊은 감성과 치안·맛집 모두 만족'
+        memo: '3/26 밤까지 관광·쇼핑 후 심야 공항 이동하기 좋은 위치'
       },
       {
         id: 'd24-st-2',
         dayId: 'D0324',
         category: '숙소',
-        title: '술탄아흐메트(Sultanahmet) 오스만 부티크 호텔 (3박 전체)',
+        title: '술탄아흐메트(Sultanahmet) 오스만 부티크 호텔 (3/24~3/27 · 3박)',
         subtitle: '3/24~3/27 (3박) · 조식 포함 · 블루모스크·아야소피아 도보 5분',
         priceKRW: 660000,
         selected: false,
+        rating: '',
+        badge: '유적지 인접',
         pros: '핵심 유적지 도보 이동 최강, 루프탑 조식당 뷰 환상적',
         cons: '밤에 상점이 일찍 닫아 조용한 편',
         link: '',
@@ -981,17 +1129,19 @@ function doPost(e) {
         memo: ''
       },
 
-      // 3/25~3/27 이스탄불 관광 & 귀국
+      // 3/25~3/27 이스탄불 관광 & 귀국 (3/27 2:20 AM IST -> 6:20 PM ICN)
       {
         id: 'd25-pr-1',
         dayId: 'D0325',
         category: '프로그램',
-        title: '이스탄불 핵심 유적 + 보스포러스 선셋 크루즈 + 하맘/쇼핑 (3일 총액)',
-        subtitle: '2인 기준 · 아야소피아/시스턴 입장료 + 선셋 요트 투어 + 그랜드바자르 기념품',
+        title: '이스탄불 핵심 유적 + 보스포러스 선셋 크루즈 + 쇼핑 (3/26 풀데이 활용)',
+        subtitle: '2인 기준 · 3/27 2:20 AM 심야 출발 전 3/26 하루를 온전히 활용하는 관광·쇼핑 플랜',
         priceKRW: 450000,
         selected: true,
-        pros: '아프리카 대자연과 대비되는 동서양 문화유산·미식·쇼핑 완벽 마무리',
-        cons: '튀르키예 물가 상승으로 주요 박물관 입장료가 높은 편 (뮤지엄패스 비교 권장)',
+        rating: '',
+        badge: '',
+        pros: '3/27 2:20 AM 출발 비행기 특성상 3/26 마지막 날 저녁까지 여유롭게 일정 소화 가능',
+        cons: '주요 유적지 입장료 및 튀르키예 현지 물가 변동 고려',
         link: '',
         voteA: true,
         voteB: true,
@@ -1001,16 +1151,18 @@ function doPost(e) {
         id: 'd25-tr-1',
         dayId: 'D0325',
         category: '이동수단',
-        title: '3/27 호텔 → 이스탄불 공항(IST) 프라이빗 샌딩 밴',
-        subtitle: '2인 편도 · 귀국 쇼핑 캐리어 안전 운송 (출발 3시간 반 전 픽업)',
+        title: '3/26 밤 → 3/27 2:20 AM 출발 대비 IST 공항 프라이빗 샌딩 밴',
+        subtitle: '2인 편도 · 3/27 2:20 AM 출발 / 6:20 PM ICN 도착 항공편 연계 심야 공항 이동',
         priceKRW: 65000,
         selected: true,
-        pros: '귀국길 무거운 캐리어와 면세 쇼핑백 편리하게 공항 도착',
+        rating: '',
+        badge: '심야 샌딩',
+        pros: '늦은 밤/심야 시간대에도 안전한 도어투도어 공항 이동 및 수하물 운송',
         cons: '없음',
         link: '',
         voteA: true,
         voteB: true,
-        memo: ''
+        memo: '2:20 AM 출발 기준 3/26 밤 10시 30분경 호텔 출발 권장'
       }
     ];
 
@@ -1286,7 +1438,7 @@ function doPost(e) {
             : 'border-transparent shadow-apple-sm hover:border-black/[0.12]'
         }">
           <div>
-            <!-- Top Row: Selection Toggle & Actions -->
+            <!-- Top Row: Multi-Selection Toggle & Actions -->
             <div class="flex items-center justify-between gap-2 mb-2.5">
               <button onclick="toggleSelectOption('${item.id}')"
                 class="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold transition ${
@@ -1294,10 +1446,10 @@ function doPost(e) {
                     ? 'bg-[#0071E3] text-white'
                     : 'bg-[#F5F5F7] text-[#6E6E73] hover:bg-[#E5E5EA] hover:text-[#1D1D1F]'
                 }">
-                <span class="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[10px] ${
+                <span class="w-3.5 h-3.5 rounded flex items-center justify-center text-[10px] ${
                   isSelected ? 'bg-white text-[#0071E3]' : 'border border-[#8E8E93]'
                 }">${isSelected ? '✓' : ''}</span>
-                <span>${isSelected ? '확정 선택됨' : '이 옵션 선택'}</span>
+                <span>${isSelected ? '선택됨 · 해제하려면 클릭' : '후보 선택(복수 가능)'}</span>
               </button>
 
               <div class="flex items-center gap-1">
@@ -1319,8 +1471,12 @@ function doPost(e) {
             </div>
 
             <!-- Title & Subtitle -->
-            <h4 class="text-sm font-bold text-[#1D1D1F] leading-snug">${escapeHtml(item.title)}</h4>
+            <div class="flex items-start justify-between gap-2">
+              <h4 class="text-sm font-bold text-[#1D1D1F] leading-snug">${escapeHtml(item.title)}</h4>
+              ${item.badge ? `<span class="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#0071E3]/10 text-[#0071E3]">${escapeHtml(item.badge)}</span>` : ''}
+            </div>
             <p class="text-[11px] text-[#6E6E73] mt-1">${escapeHtml(item.subtitle || '')}</p>
+            ${item.rating ? `<p class="text-[10px] font-medium text-[#6E6E73] mt-1">★ ${escapeHtml(item.rating)}</p>` : ''}
 
             <!-- Price Tag -->
             <div class="mt-3 pt-2.5 border-t border-black/[0.05] flex items-baseline justify-between">
@@ -1458,12 +1614,12 @@ function doPost(e) {
               <div class="bg-[#FF9F0A]/[0.07] border border-[#FF9F0A]/25 rounded-2xl p-4">
                 <div class="flex items-center gap-2 text-[#B25000] font-bold text-sm">
                   <span>1.</span>
-                  <span>3/15 도착 당일 서벌 와일드라이프 강행 주의</span>
+                  <span>3/15 ET673+ET815 (10:40 AM JRO 도착) & 서벌 투어 동선</span>
                 </div>
                 <p class="text-xs text-[#3A3A3C] mt-2 leading-relaxed">
-                  인천에서 출발해 킬리만자로(JRO)에 도착하면 시차와 장거리 비행 피로가 큽니다. JRO 공항에서 아루샤 시내까지 약 1시간, 아루샤에서 서벌 와일드라이프(Siha)까지는 다시 약 1시간 20분(왕복 약 3시간)이 소요됩니다.
+                  3/15 ICN 12:10 AM 출발 → ADD(7:20 AM 도착, 1h 환승) → JRO <strong>10:40 AM</strong> 도착(총 16h 30m) 일정은 <strong>오전 도착이므로 입국심사·수하물 수령 및 아루샤 이동에 충분한 낮 시간 버퍼</strong>를 확보할 수 있습니다.
                   <br><br>
-                  <strong>💡 추천 대안:</strong> 3/15 항공편이 <strong>정오 이전 도착</strong>일 때만 당일 방문하시고, 오후 도착이라면 3/15은 아루샤 호텔에서 푹 쉬신 뒤 <strong>3/20 사파리 종료 후 아루샤(ARK) 또는 킬리만자로(JRO) 공항으로 이동하는 길</strong>에 들르는 것이 동선과 체력 모두 훨씬 효율적입니다.
+                  <strong>💡 전문가 체크포인트:</strong> 아디스아바바(ADD) <strong>1시간 환승</strong>은 ET673 지연 시 연결 리스크가 있으므로 항공사 직예약 및 빠른 게이트 이동이 중요합니다. 또한 16.5시간 여정 직후 서벌 와일드라이프(왕복 약 3시간)를 당일 진행할 경우 <strong>시차·이동 피로도</strong>를 감안해 컨디션을 살펴보세요.
                 </p>
               </div>
 
@@ -1471,12 +1627,12 @@ function doPost(e) {
               <div class="bg-[#FF9F0A]/[0.07] border border-[#FF9F0A]/25 rounded-2xl p-4">
                 <div class="flex items-center gap-2 text-[#B25000] font-bold text-sm">
                   <span>2.</span>
-                  <span>3/23 → 3/24 잔지바르 출발 새벽 항공편 체크아웃 공백</span>
+                  <span>3/24 터키항공 ZNZ 5:30 AM 출발 → 1:25 PM IST 도착</span>
                 </div>
                 <p class="text-xs text-[#3A3A3C] mt-2 leading-relaxed">
-                  터키항공 잔지바르(ZNZ) → 이스탄불(IST) 직항편은 대부분 <strong>새벽 02:00 ~ 04:35 출발</strong>입니다. 3/23 오전 11시에 능위 리조트를 체크아웃하면 비행기 탑승까지 약 14시간의 공백이 생깁니다.
+                  잔지바르(ZNZ) 출발이 <strong>오전 5:30 AM</strong>(7h 55m 직항, 1:25 PM IST 도착)이므로, 북부 능위(Nungwi)에서 이동할 경우 <strong>새벽 2:00~2:30 AM 기상</strong>이 필요해 체력 부담이 큽니다.
                   <br><br>
-                  <strong>💡 추천 대안:</strong> 3/23 오후에 공항에서 10분 거리 호텔(예: <em>Madinat Al Bahr</em>)로 미리 이동하여 저녁 식사와 샤워, 수면을 취한 뒤 밤 11시 반에 체크아웃하고 공항으로 이동하는 것을 강력 추천합니다.
+                  <strong>💡 추천 대안:</strong> 3/23 밤에는 스톤타운 또는 ZNZ 공항 인근 숙소로 미리 이동해 휴식한 뒤 이른 새벽 공항으로 이동하는 것이 훨씬 쾌적합니다.
                 </p>
               </div>
 
@@ -1484,10 +1640,10 @@ function doPost(e) {
               <div class="bg-[#0071E3]/[0.05] border border-[#0071E3]/20 rounded-2xl p-4">
                 <div class="flex items-center gap-2 text-[#0071E3] font-bold text-sm">
                   <span>3.</span>
-                  <span>3/20 사파리 종료 후 국내선 연결 타임테이블</span>
+                  <span>3/27 터키항공 IST 2:20 AM 출발 → 6:20 PM ICN 도착</span>
                 </div>
                 <p class="text-xs text-[#3A3A3C] mt-2 leading-relaxed">
-                  세렝게티 중심부에서 아루샤 공항(ARK)까지 차량 이동만 약 6~7시간이 걸립니다. SafariBookings 예약 시 <strong>마지막 날(3/20)은 응고롱고로 또는 타랑기레에서 오전 일정만 마치고 오후 14:00~16:00 아루샤 출발 국내선</strong>을 탈 수 있도록 루트를 확정하세요.
+                  귀국편이 <strong>3/27 새벽 2:20 AM IST 출발</strong>(10h 직항, 6:20 PM ICN 도착)이므로, <strong>3/26(금) 하루는 이스탄불 시내 관광과 쇼핑을 거의 온전히 소화</strong>한 뒤 밤늦게 공항으로 향하는 심야 출발 동선입니다. 3/26 저녁 식사 및 숙소 짐 보관/이동 타이밍을 미리 맞춰두세요.
                 </p>
               </div>
 
@@ -1495,10 +1651,10 @@ function doPost(e) {
               <div class="bg-[#34C759]/[0.07] border border-[#34C759]/25 rounded-2xl p-4">
                 <div class="flex items-center gap-2 text-[#248A3D] font-bold text-sm">
                   <span>4.</span>
-                  <span>2인 1,000만원 예산 달성 황금 배분 비율</span>
+                  <span>2인 1,000만원 예산 달성 & 항공 견적 배분</span>
                 </div>
                 <p class="text-xs text-[#3A3A3C] mt-2 leading-relaxed">
-                  현재 기본 추천 조합(약 930~960만원선)을 기준으로 <strong>항공(340만) + 프라이빗 사파리(320만) + 숙소 전체(220만) + 현지투어·이동(110만)</strong>으로 배분하면 1,000만원 이내에서 프라이빗 신혼여행 퀄리티를 완벽히 지킬 수 있습니다. (현장 팁·식사 예비비 약 40~50만원 별도 권장)
+                  에티오피아항공 가는편 직예약(₩2,142,388) + 터키항공 리턴 다구간 직항(₩1,563,050) 합산 시 항공료는 <strong>약 ₩3,705,438(2인)</strong>입니다. 남은 예산 내에서 프라이빗 사파리·숙소·투어를 조합해 목표 1,000만 원 이내로 관리할 수 있습니다.
                 </p>
               </div>
             </div>
@@ -1579,18 +1735,10 @@ function doPost(e) {
       const target = items.find(i => i.id === id);
       if (!target) return;
 
-      const willSelect = !target.selected;
-      // Within the same day & same category, make selection mutually exclusive for clean comparison
-      if (willSelect) {
-        items.forEach(i => {
-          if (i.dayId === target.dayId && i.category === target.category) {
-            i.selected = false;
-          }
-        });
-      }
-      target.selected = willSelect;
+      // Support true multi-selection: toggle only this option without clearing other options in the same stage/category
+      target.selected = !target.selected;
 
-      persistAndSync('옵션 선택이 반영되었습니다');
+      persistAndSync(target.selected ? '후보가 선택 목록에 추가되었습니다' : '후보 선택이 해제되었습니다');
       renderAll();
     }
 
@@ -1685,12 +1833,14 @@ function doPost(e) {
     function saveOptionForm(e) {
       e.preventDefault();
       const editId = document.getElementById('form-option-id').value;
+      const priceKrwVal = Number(document.getElementById('form-price-krw').value) || 0;
       const newObj = {
         id: editId || 'opt-' + Date.now(),
         dayId: document.getElementById('form-day-id').value,
         category: document.getElementById('form-category').value,
         title: document.getElementById('form-title').value.trim(),
-        priceKRW: Number(document.getElementById('form-price-krw').value) || 0,
+        priceKRW: priceKrwVal,
+        priceUsd: Math.round(priceKrwVal / settings.exchangeRate),
         subtitle: document.getElementById('form-subtitle').value.trim(),
         pros: document.getElementById('form-pros').value.trim(),
         cons: document.getElementById('form-cons').value.trim(),
@@ -1787,6 +1937,97 @@ function doPost(e) {
       }
     }
 
+    function buildStateSnapshot() {
+      const selectedOptionIds = items.filter(item => item.selected).map(item => item.id);
+      const selectedByGroup = {};
+      const votesById = {};
+      const memosById = {};
+      items.forEach(item => {
+        if (item.selected) {
+          const groupKey = `${item.dayId}__${item.category}`;
+          if (!selectedByGroup[groupKey]) selectedByGroup[groupKey] = [];
+          selectedByGroup[groupKey].push(item.id);
+        }
+        if (item.voteA || item.voteB) {
+          votesById[item.id] = { voteA: Boolean(item.voteA), voteB: Boolean(item.voteB) };
+        }
+        if (item.memo) {
+          memosById[item.id] = item.memo;
+        }
+      });
+      return {
+        selectedOptionIds,
+        selectedByGroup,
+        votesById,
+        memosById,
+        partnerA: settings.partnerA,
+        partnerB: settings.partnerB,
+        exchangeRate: settings.exchangeRate
+      };
+    }
+
+    function mergeSheetOptionsWithState(sheetOptions, sheetState) {
+      const prevById = {};
+      items.forEach(i => { prevById[i.id] = i; });
+      const explicitSelectedIds = Array.isArray(sheetState && sheetState.selectedOptionIds)
+        ? new Set(sheetState.selectedOptionIds.map(String))
+        : null;
+
+      const merged = sheetOptions.map(raw => {
+        const id = String(raw.id || ('opt-' + Math.random().toString(36).slice(2, 8))).trim();
+        const dayId = String(raw.stageId || raw.dayId || 'D0315').trim();
+        const category = String(raw.category || '숙소').trim();
+        const priceKRW = Number(raw.priceKrw !== undefined ? raw.priceKrw : (raw.priceKRW || 0)) || 0;
+        const prev = prevById[id];
+
+        const stVotes = sheetState && sheetState.votesById && sheetState.votesById[id];
+        const stMemo = sheetState && sheetState.memosById && sheetState.memosById[id];
+
+        let isSelected = prev ? Boolean(prev.selected) : Boolean(raw.isConfirmed);
+        if (explicitSelectedIds) {
+          isSelected = explicitSelectedIds.has(id);
+        }
+
+        return {
+          id,
+          dayId,
+          category,
+          title: String(raw.title || (prev && prev.title) || '이름 없는 후보').trim(),
+          subtitle: String(raw.subtitle !== undefined ? raw.subtitle : (prev && prev.subtitle) || '').trim(),
+          priceKRW,
+          priceUsd: Number(raw.priceUsd) || Math.round(priceKRW / settings.exchangeRate),
+          rating: String(raw.rating !== undefined ? raw.rating : (prev && prev.rating) || '').trim(),
+          badge: String(raw.badge !== undefined ? raw.badge : (prev && prev.badge) || '').trim(),
+          pros: String(raw.pros !== undefined ? raw.pros : (prev && prev.pros) || '').trim(),
+          cons: String(raw.cons !== undefined ? raw.cons : (prev && prev.cons) || '').trim(),
+          link: String(raw.url || raw.link || (prev && prev.link) || '').trim(),
+          selected: isSelected,
+          voteA: stVotes ? Boolean(stVotes.voteA) : (prev ? Boolean(prev.voteA) : false),
+          voteB: stVotes ? Boolean(stVotes.voteB) : (prev ? Boolean(prev.voteB) : false),
+          memo: stMemo !== undefined ? String(stMemo) : (raw.notes || (prev && prev.memo) || '')
+        };
+      });
+
+      // Backward compatibility if only legacy single-id selectedByGroup exists
+      if (!explicitSelectedIds && sheetState && sheetState.selectedByGroup) {
+        Object.values(sheetState.selectedByGroup).forEach(chosenVal => {
+          const ids = Array.isArray(chosenVal) ? chosenVal : [chosenVal];
+          ids.forEach(chosenId => {
+            const found = merged.find(m => m.id === chosenId);
+            if (found) found.selected = true;
+          });
+        });
+      }
+
+      if (sheetState) {
+        if (sheetState.partnerA) settings.partnerA = sheetState.partnerA;
+        if (sheetState.partnerB) settings.partnerB = sheetState.partnerB;
+        if (sheetState.exchangeRate) settings.exchangeRate = Number(sheetState.exchangeRate) || settings.exchangeRate;
+      }
+
+      return merged;
+    }
+
     async function saveGasUrlAndPush() {
       const url = document.getElementById('gas-url-input').value.trim();
       settings.gasUrl = url;
@@ -1804,14 +2045,33 @@ function doPost(e) {
       if (!settings.gasUrl) return;
       updateSyncBadge('syncing');
       try {
+        const optionsPayload = items.map(i => ({
+          id: i.id,
+          stageId: i.dayId,
+          category: i.category,
+          title: i.title,
+          subtitle: i.subtitle,
+          priceKrw: Number(i.priceKRW) || 0,
+          priceUsd: Number(i.priceUsd) || Math.round((Number(i.priceKRW) || 0) / settings.exchangeRate),
+          rating: i.rating || '',
+          badge: i.badge || '',
+          pros: i.pros || '',
+          cons: i.cons || '',
+          url: i.link || '',
+          notes: i.memo || ''
+        }));
+
         await fetch(settings.gasUrl, {
           method: 'POST',
           mode: 'no-cors',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ items })
+          body: JSON.stringify({
+            options: optionsPayload,
+            state: buildStateSnapshot()
+          })
         });
         updateSyncBadge('connected');
-        if (!silent) showToast('구글 시트에 최신 계획이 반영되었습니다!');
+        if (!silent) showToast('구글 시트(Options & State)에 반영되었습니다!');
       } catch (err) {
         updateSyncBadge('error');
         if (!silent) showToast('구글 시트 전송 실패. URL을 확인해주세요.', '⚠️');
@@ -1820,26 +2080,29 @@ function doPost(e) {
 
     async function pullFromGas(silent = false) {
       if (!settings.gasUrl) {
-        if (!silent) showToast('먼저 GAS 웹앱 URL을 입력해주세요.', '⚠️');
+        if (!silent) showToast('먼저 GAS 연동에서 웹앱 URL을 입력해주세요.', '⚠️');
         return;
       }
       updateSyncBadge('syncing');
       try {
         const res = await fetch(settings.gasUrl);
         const data = await res.json();
-        if (data.status === 'ok' && Array.isArray(data.items) && data.items.length > 0) {
-          items = data.items;
+        if (data.status === 'ok' && Array.isArray(data.options) && data.options.length > 0) {
+          items = mergeSheetOptionsWithState(data.options, data.state);
+          document.getElementById('partner-a-input').value = settings.partnerA;
+          document.getElementById('partner-b-input').value = settings.partnerB;
+          document.getElementById('exchange-rate-input').value = settings.exchangeRate;
           saveLocal();
           renderAll();
           updateSyncBadge('connected');
-          if (!silent) showToast(`구글 시트에서 ${items.length}개 항목을 불러왔습니다!`);
-        } else if (data.status === 'empty') {
+          if (!silent) showToast(`구글 시트 Options 탭에서 ${items.length}개 후보를 동기화했습니다!`);
+        } else {
           updateSyncBadge('connected');
-          if (!silent) showToast('시트가 비어있어 현재 웹앱 데이터를 유지합니다.');
+          if (!silent) showToast('시트에 새로 추가된 후보가 없어 현재 데이터를 유지합니다.');
         }
       } catch (err) {
         updateSyncBadge('error');
-        if (!silent) showToast('구글 시트 불러오기 실패 (배포 권한 확인)', '⚠️');
+        if (!silent) showToast('구글 시트 불러오기 실패 (배포 권한을 확인해주세요)', '⚠️');
       }
     }
 
